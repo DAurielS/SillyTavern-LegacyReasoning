@@ -67,83 +67,40 @@ function applyPatch() {
     // Patch the public 'process' method
     ReasoningHandler.prototype.process = async function(messageId, mesChanged, promptReasoning) {
         const settings = extension_settings[MODULE_NAME];
+        const shouldDelay = settings?.enabled &&
+                            power_user.reasoning.auto_parse &&
+                            power_user.reasoning.prefix && // Need prefix to check
+                            this.state === ReasoningState.None;
 
-        // If extension is enabled and conditions are right, apply custom logic
-        if (settings?.enabled &&
-            power_user.reasoning.auto_parse &&
-            power_user.reasoning.prefix &&
-            power_user.reasoning.suffix &&
-            this.state === ReasoningState.None // Only apply when no reasoning state is set yet
-           )
-        {
+        if (shouldDelay) {
             const message = chat[messageId];
             if (message) {
                 const parseTarget = promptReasoning?.prefixIncomplete ?
                     (promptReasoning.prefixReasoningFormatted + message.mes) :
                     message.mes;
 
-                // Check for prefix and suffix before proceeding
-                if (parseTarget.startsWith(power_user.reasoning.prefix) &&
-                    parseTarget.includes(power_user.reasoning.suffix) &&
-                    parseTarget.length > power_user.reasoning.prefix.length)
-                {
-                    console.log(`${extensionName}: Applying legacy parse logic.`);
-                    // Extract reasoning directly
-                    const suffixIndex = parseTarget.indexOf(power_user.reasoning.suffix);
-                    const reasoning = parseTarget.slice(
-                        power_user.reasoning.prefix.length,
-                        suffixIndex
-                    );
-                    this.reasoning = reasoning; // Set public property
+                const hasPrefix = parseTarget.startsWith(power_user.reasoning.prefix);
+                // Check for suffix only if prefix is present
+                const hasSuffix = hasPrefix && power_user.reasoning.suffix && parseTarget.includes(power_user.reasoning.suffix);
 
-                    // Extract message content after suffix
-                    const mesStartIndex = suffixIndex + power_user.reasoning.suffix.length;
-                    message.mes = trimSpaces(parseTarget.slice(mesStartIndex));
-
-                    // Set state and timing info directly
-                    this.state = ReasoningState.Done; // Set public property
-                    this.startTime = this.startTime ?? this.initialTime;
-                    this.endTime = new Date();
-
-                    // We've handled the initial parsing part. Now, let the rest of the original
-                    // 'process' function handle state updates, DOM updates, etc.
-                    // We need to call the *rest* of the original process logic, *skipping* its
-                    // internal call to #autoParseReasoningFromMessage for this specific case.
-                    // Since we can't easily skip just that part, we'll call the original function
-                    // but be aware it might try to re-parse. However, since `this.state` is now `Done`,
-                    // the original #autoParseReasoningFromMessage should ideally do nothing further.
-                    // We also need to update `mesChanged` if we modified `message.mes`.
-                    const originalMesChanged = mesChanged;
-                    mesChanged = mesChanged || (message.mes !== parseTarget.slice(mesStartIndex));
-
-                    // Call the original process, but let it know mes might have changed
-                    // It will handle the logic from line 370 onwards in reasoning.js
-                    return originalProcessFn.call(this, messageId, mesChanged, promptReasoning);
-
-                } else {
-                    // Conditions for legacy parse not met (e.g., suffix not present yet)
-                    // In this specific state (enabled, auto_parse, None state),
-                    // prevent the default parsing from happening yet.
-                    // We essentially do nothing and wait for more streaming data.
-                    console.log(`${extensionName}: Waiting for full reasoning block.`);
-                    // We need to prevent the original process from running its #autoParse... call
-                    // For now, let's just return, effectively stopping processing for this chunk.
-                    // This might have side effects if other parts of 'process' are crucial even
-                    // when reasoning isn't fully formed. A more complex patch might be needed
-                    // to replicate the latter half of 'process' here.
-                    // Let's try returning first.
+                // THE CORE LOGIC: Only delay if prefix is present BUT suffix is missing
+                if (hasPrefix && !hasSuffix) {
+                    console.log(`${extensionName}: Waiting for suffix (Prefix found). Stopping processing for this chunk.`);
                     return; // Stop processing this chunk, wait for more data
                 }
+                // If prefix is present AND suffix is present, OR if prefix is NOT present,
+                // we fall through and let the original function handle it.
             }
         }
 
-        // If extension is disabled, or conditions weren't met for custom logic,
-        // call the original process function directly.
+        // If extension is disabled, or state is not None, or prefix wasn't found,
+        // or if both prefix and suffix were found (letting original handle it now),
+        // call the original process function.
         return originalProcessFn.call(this, messageId, mesChanged, promptReasoning);
     };
 
     ReasoningHandler.prototype._legacyReasoningProcessPatched = true;
-    console.log(`${extensionName}: Patched ReasoningHandler.process method.`);
+    console.log(`${extensionName}: Patched ReasoningHandler.process method (Minimal Hook Strategy).`);
 }
 
 
