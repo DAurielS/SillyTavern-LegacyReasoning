@@ -1,0 +1,19 @@
+<div class="legacy-reasoning-settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Legacy Reasoning Parse Mode</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-info"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <div class="flex-container alignItemsBaseline">
+                <label class="checkbox_label flex1" for="legacy_reasoning_parse_enabled" title="Wait for both prefix and suffix to appear before parsing reasoning. If disabled, parsing begins as soon as prefix appears." data-i18n="[title]reasoning_parse_mode">
+                    <input id="legacy_reasoning_parse_enabled" type="checkbox" />
+                    <small data-i18n="Wait for Full Reasoning">
+                        Wait for Full Reasoning
+                    </small>
+                </label>
+            </div>
+            <small><i>When enabled, reasoning parsing during streaming will only begin once both the prefix and suffix (defined in AI Response Formatting > Reasoning Formatting) are detected in the incoming text.</i></small>
+        </div>
+    </div>
+</div>
