@@ -1,0 +1,11 @@
+{
+    "display_name": "Legacy Reasoning Parse Mode",
+    "loading_order": 1,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "author": "MonGauss",
+    "version": "1.0.0",
+    "homePage": "",
+    "auto_update": false
+}
